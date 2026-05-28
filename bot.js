@@ -20,7 +20,7 @@ const CAPTCHA_URL = "https://api.goa7777.com/api/webapi/GetCaptcha";
 const DRAW_URL    = "https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json";
 
 // Martingale multipliers — user can customize base bet
-const MULT = [1,3,9,27,81,243,729,2187,6561,19683];
+const MULT = [1,3,9,27,81,210,810,2100,4500];
 
 // ============================================================
 //  RENDER KEEP-ALIVE — Prevent render free tier sleep
@@ -67,7 +67,7 @@ let GLOBAL_TOKEN   = "";
 function initUser(id) {
     if (!stats[id])        stats[id]        = { total:0,win:0,loss:0,lossStreak:0,winStreak:0,maxWinStreak:0,maxLossStreak:0 };
     if (!sentPeriods[id])  sentPeriods[id]  = new Set();
-    if (!autobetCfg[id])   autobetCfg[id]   = { watch:true, watchLoss:2, baseBet:10, maxLvl:4, enabled:false };
+    if (!autobetCfg[id])   autobetCfg[id]   = { watch:true, watchLoss:1, baseBet:1, maxLvl:10, enabled:false };
     if (!autobetState[id]) autobetState[id] = { level:1, consecutiveLoss:0, inMart:false };
     if (!profitTrack[id])  profitTrack[id]  = { totalBets:0, wins:0, losses:0, pnl:0, winStreak:0, lossStreak:0, maxW:0, maxL:0 };
 }
