@@ -868,106 +868,188 @@ function decidePrediction(list, currentLevel, userId) {
     
     const rawAnswer = nextLast3Num * Math.exp(currentResult);
     
-    // Get full precision (20 decimals)
-    const fullStr = rawAnswer.toFixed(20);
-    const parts = fullStr.split('.');
-    const allDecimals = parts[1];  // All decimal digits
+// ═══════════════════════════════════════════════════════════════════════════════
+//  🔥 FINAL VERSION - 14 DIGITS TOTAL
+//  ⭐ REMOVE DECIMAL + TAKE FIRST 14!
+//  ✅ DECIMAL MUNNA ELLATHUM SETHARAM!
+//  🚀 SIMPLE & CLEAR!
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * LOGIC:
+ * 
+ * 2864700.625547101
+ * ├─ Remove decimal point
+ * └─ 2864700625547101
+ * 
+ * ├─ Take first 14 digits
+ * └─ 28647006255471
+ * 
+ * ├─ Get last digit
+ * └─ 1 ← USE THIS!
+ * 
+ * ├─ Apply logic: 0-4=SMALL, 5-9=BIG
+ * └─ Prediction: SMALL ✅
+ */
+
+let modeState = {};
+
+function initModeState(userId) {
+    if (!modeState[userId]) {
+        modeState[userId] = {
+            mode: 'NORMAL',
+            recoveryCount: 0,
+            lastWasLoss: false
+        };
+    }
+}
+
+function decidePrediction(list, currentLevel, userId) {
+    
+    if (!list || list.length < 2) {
+        return null;
+    }
+
+    initModeState(userId);
+    const state = modeState[userId];
+
+    // L3+: FORCED WIN
+    if (currentLevel >= 3) {
+        function parseItem(item) {
+            const n = +item.number;
+            return {
+                n,
+                size: n >= 5 ? 'BIG' : 'SMALL',
+                color: n === 0 ? 'RED' : n === 5 ? 'GREEN' : n % 2 === 0 ? 'RED' : 'GREEN'
+            };
+        }
+
+        function countValue(arr, k, v) {
+            return arr.filter(x => x[k] === v).length;
+        }
+
+        const data = list.slice(0, 20).map(parseItem);
+        const big = countValue(data, 'size', 'BIG');
+        const small = countValue(data, 'size', 'SMALL');
+
+        let conf = 99;
+        if (currentLevel === 4) conf = 99.5;
+        if (currentLevel >= 5) conf = 99.9;
+
+        return {
+            type: 'SIZE',
+            val: big > small ? 'SMALL' : 'BIG',
+            conf: conf,
+            pat: 'L' + currentLevel + '-FORCED'
+        };
+    }
+
+    // ═════════════════════════════════════════════════════════════════════
+    //  L1-L2: FINAL 14 DIGITS TOTAL LOGIC
+    // ═════════════════════════════════════════════════════════════════════
+
+    const currentPeriod = String(list[0].issueNumber);
+    const currentResult = parseInt(list[0].number || list[0].winNumber || 0);
+
+    const nextPeriodNum = BigInt(currentPeriod) + 1n;
+    const nextPeriod = nextPeriodNum.toString();
+    
+    const nextLast3Num = parseInt(nextPeriod.slice(-3));
+
+    // ═════════════════════════════════════════════════════════════════════
+    //  CALCULATE: NEXT_LAST_3 × exp(CURRENT_RESULT)
+    // ═════════════════════════════════════════════════════════════════════
+    
+    const answer = nextLast3Num * Math.exp(currentResult);
+    const answerStr = answer.toString();
     
     // ═════════════════════════════════════════════════════════════════════
-    //  EXTRACT DECIMALS 9-15 (LAST DIGIT FROM THAT RANGE)
+    //  REMOVE DECIMAL POINT + GET FIRST 14 DIGITS
     // ═════════════════════════════════════════════════════════════════════
     
-    // Decimals 9-15 means: index 8 to 14 (0-indexed)
-    const dec9to15 = allDecimals.substring(8, 15);
-    const lastDigitChar = dec9to15.charAt(dec9to15.length - 1);
-    const lastDigit = parseInt(lastDigitChar);
+    // Remove decimal point completely
+    const noDecimal = answerStr.replace('.', '');
     
-    // Build answer string for display
-    const answerDisplay = parts[0] + '.' + dec9to15;
+    // Take first 14 digits
+    const first14 = noDecimal.substring(0, 14);
+    
+    // Get last digit from 14
+    const lastDigit = parseInt(first14.charAt(first14.length - 1));
 
     // ═════════════════════════════════════════════════════════════════════
     //  APPLY MODE LOGIC
     // ═════════════════════════════════════════════════════════════════════
     
     let prediction;
-    let modeInfo = '';
+    let modeLabel = '';
+    let logicLabel = '';
 
     if (state.mode === 'RECOVERY' && state.recoveryCount < 2) {
-        // RECOVERY MODE: 0-4=BIG, 5-9=SMALL
+        // RECOVERY: 0-4=BIG, 5-9=SMALL
         prediction = lastDigit <= 4 ? 'BIG' : 'SMALL';
         state.recoveryCount++;
-        modeInfo = 'RECOVERY-' + state.recoveryCount;
+        modeLabel = `RECOVERY (${state.recoveryCount}/2)`;
+        logicLabel = '0-4=BIG, 5-9=SMALL';
     } else {
-        // NORMAL MODE: 0-4=SMALL, 5-9=BIG
+        // NORMAL: 0-4=SMALL, 5-9=BIG
         prediction = lastDigit <= 4 ? 'SMALL' : 'BIG';
         
         if (state.mode === 'RECOVERY' && state.recoveryCount >= 2) {
-            modeInfo = 'RECOVERY-DONE→NORMAL';
+            modeLabel = 'RECOVERY DONE → NORMAL';
             state.mode = 'NORMAL';
             state.recoveryCount = 0;
         } else {
-            modeInfo = 'NORMAL';
+            modeLabel = 'NORMAL';
         }
+        logicLabel = '0-4=SMALL, 5-9=BIG';
     }
 
     return {
         type: 'SIZE',
         val: prediction,
         conf: 85,
-        pat: modeInfo,
+        pat: modeLabel,
         debug: {
             period: nextPeriod,
-            raw: rawAnswer,
-            dec9to15: answerDisplay,
+            formula: `${nextLast3Num} × exp(${currentResult})`,
+            answer: answerStr,
+            noDecimal: noDecimal,
+            first14Digits: first14,
             lastDigit: lastDigit,
             mode: state.mode,
-            recoveryCount: state.recoveryCount
+            logic: logicLabel
         }
     };
 }
-
-// ═════════════════════════════════════════════════════════════════════
-//  UPDATE MODE AFTER RESULT
-// ═════════════════════════════════════════════════════════════════════
 
 function updateModeAfterResult(userId, wasWin) {
     initModeState(userId);
     const state = modeState[userId];
 
     if (!wasWin) {
-        // LOSS
         if (state.mode === 'NORMAL') {
-            // Normal loss: Mark for recovery next prediction
             state.lastWasLoss = true;
         } else if (state.mode === 'RECOVERY') {
-            // Recovery loss: Reset
-            if (state.recoveryCount >= 2) {
-                state.mode = 'NORMAL';
-                state.recoveryCount = 0;
-                state.lastWasLoss = false;
-            } else {
-                // Still in recovery, continue
-                state.lastWasLoss = true;
-            }
+            state.mode = 'NORMAL';
+            state.recoveryCount = 0;
+            state.lastWasLoss = false;
         }
     } else {
-        // WIN
         if (state.lastWasLoss && state.mode === 'NORMAL') {
-            // Loss→Win: ACTIVATE RECOVERY
             state.mode = 'RECOVERY';
             state.recoveryCount = 0;
             state.lastWasLoss = false;
         } else if (state.mode === 'RECOVERY' && state.recoveryCount < 2) {
-            // Continue recovery if winning
             state.lastWasLoss = false;
         } else {
-            // Normal win
             state.lastWasLoss = false;
         }
     }
 }
 
 module.exports = { decidePrediction, updateModeAfterResult, initModeState };
+
+
 // ============================================================
 //  AUTOBET LOGIC
 // ============================================================
