@@ -10,7 +10,7 @@ const BOT_TOKEN    = "8678093059:AAHq807wosQs65Odx1qrtRflQi8BimBk3fc";
 const OWNER_ID     = 8321379592;
 const OWNER_PASS   = "2004";
 const ADMIN_HANDLE = "@OnlineEarningapp_bot";
-const REG_LINK     = "https://www.goaoko.com/#/register?invitationCode=457367799017";
+const REG_LINK     = "http://www.goaok.org/#/register?invitationCode=148628447883";
 const WIN_STICKER  = "CAACAgUAAxkBAAFHUGNp4JX1-ohP4uBEWpfNptaz-HmwVgAC4hgAAhboKVbObuGuTcMs2zsE";
 const LOSS_STICKER = "CAACAgUAAxkBAAFHUGVp4JX-BE2TRkhIKTwcjkwW-gzdPAACthoAAoG8YVYiydObSa0O8zsE";
 
@@ -382,428 +382,22 @@ async function fetchList(retries=3) {
     return null;
 }
 
-// ============================================================
-//  PREDICTION ENGINE
-// ============================================================
 // ═══════════════════════════════════════════════════════════════════════════════
-//  🔥 SIVA ULTRA AI - ULTIMATE SHARP PREDICTION
-//  ⭐ PRIORITY: TRIPLE → DRAGON → DOUBLE → EXTREME → SKIP
-//  ✅ L3-L5: 100% GUARANTEED WIN!
-//  ⚠️ NO WEAK SIGNALS - SKIP IF NOT 95%+
+//  🔥 PREDICTION WITH RECOVERY MODE - FINAL VERSION
+//  ⭐ EXACTLY 2 LOSSES → 2 RECOVERY PREDICTIONS
+//  ✅ NORMAL: 0-4=SMALL, 5-9=BIG
+//  ✅ RECOVERY: 0-4=BIG, 5-9=SMALL
+//  🚀 PRODUCTION READY!
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  🔥 SIVA ULTRA AI - MASTER FINAL VERSION
-//  ⭐ SIMPLE. REALISTIC. NO FAKE CLAIMS.
-//  ✅ PATTERN FILTERING + ANTI-PATTERN LOGIC
-//  ⚠️ PROFIT COMES FROM SKIP + DISCIPLINE, NOT "99% PREDICTION"
-// ═══════════════════════════════════════════════════════════════════════════════
+let userStates = {};
 
-function parseItem(item) {
-  const n = +item.number;
-  return {
-    n,
-    size: n >= 5 ? 'BIG' : 'SMALL',
-    color: n === 0 ? 'RED' : n === 5 ? 'GREEN' : n % 2 === 0 ? 'RED' : 'GREEN'
-  };
-}
-
-function countStreaks(arr, k) {
-  const streaks = [];
-  let current = { val: arr[0][k], count: 1 };
-  for (let i = 1; i < arr.length; i++) {
-    if (arr[i][k] === current.val) {
-      current.count++;
-    } else {
-      streaks.push(current);
-      current = { val: arr[i][k], count: 1 };
-    }
-  }
-  streaks.push(current);
-  return streaks;
-}
-
-function countValue(arr, k, v) {
-  return arr.filter(x => x[k] === v).length;
-}
-
-function isAlternating(arr, k, minLen) {
-  if (arr.length < minLen) return false;
-  for (let i = 0; i < minLen - 1; i++) {
-    if (arr[i][k] === arr[i + 1][k]) return false;
-  }
-  return true;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-//  PATTERN 1: DRAGON DETECTION (97%)
-//  4+ SAME = Continue SAME
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function detectDragon(list) {
-  const data = list.slice(0, 15).map(parseItem);
-  
-  // SIZE DRAGON
-  const sizeStreaks = countStreaks(data, 'size');
-  for (const streak of sizeStreaks) {
-    if (streak.count >= 4) {
-      return {
-        type: 'SIZE',
-        val: streak.val,
-        conf: 97,
-        pat: 'DRAGON-' + streak.val + '-x' + streak.count
-      };
-    }
-  }
-  
-  // COLOR DRAGON
-  const colorStreaks = countStreaks(data, 'color');
-  for (const streak of colorStreaks) {
-    if (streak.count >= 4) {
-      return {
-        type: 'COLOR',
-        val: streak.val,
-        conf: 97,
-        pat: 'DRAGON-' + streak.val + '-x' + streak.count
-      };
-    }
-  }
-  
-  return null;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-//  PATTERN 2: EXTENDED ALTERNATION (95%)
-//  7+ alternating items
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function detectExtendedAlternation(list) {
-  const data = list.slice(0, 20).map(parseItem);
-  
-  if (isAlternating(data, 'size', 7)) {
-    const nextVal = data[0].size === 'BIG' ? 'SMALL' : 'BIG';
-    return {
-      type: 'SIZE',
-      val: nextVal,
-      conf: 95,
-      pat: 'EXT-ALT-7'
-    };
-  }
-  
-  if (isAlternating(data, 'color', 7)) {
-    const nextVal = data[0].color === 'RED' ? 'GREEN' : 'RED';
-    return {
-      type: 'COLOR',
-      val: nextVal,
-      conf: 95,
-      pat: 'EXT-ALT-7'
-    };
-  }
-  
-  return null;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-//  PATTERN 3: EXTREME DOMINANCE (96%)
-//  18+/20 items same
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function detectExtremeDominance(list) {
-  const data = list.slice(0, 20).map(parseItem);
-  
-  const big = countValue(data, 'size', 'BIG');
-  const small = countValue(data, 'size', 'SMALL');
-  
-  if (big >= 18) {
-    return {
-      type: 'SIZE',
-      val: 'SMALL',
-      conf: 96,
-      pat: big + '/20 EXTREME-BIG'
-    };
-  }
-  
-  if (small >= 18) {
-    return {
-      type: 'SIZE',
-      val: 'BIG',
-      conf: 96,
-      pat: small + '/20 EXTREME-SML'
-    };
-  }
-  
-  const red = countValue(data, 'color', 'RED');
-  const green = countValue(data, 'color', 'GREEN');
-  
-  if (red >= 18) {
-    return {
-      type: 'COLOR',
-      val: 'GREEN',
-      conf: 96,
-      pat: red + '/20 EXTREME-RED'
-    };
-  }
-  
-  if (green >= 18) {
-    return {
-      type: 'COLOR',
-      val: 'RED',
-      conf: 96,
-      pat: green + '/20 EXTREME-GRN'
-    };
-  }
-  
-  return null;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-//  PATTERN 4: VERY HIGH SATURATION (95%)
-//  16+/20 or 9/10
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function detectVeryHighSaturation(list) {
-  const data10 = list.slice(0, 10).map(parseItem);
-  const data20 = list.slice(0, 20).map(parseItem);
-  
-  const big10 = countValue(data10, 'size', 'BIG');
-  const small10 = countValue(data10, 'size', 'SMALL');
-  const big20 = countValue(data20, 'size', 'BIG');
-  const small20 = countValue(data20, 'size', 'SMALL');
-  
-  if (big10 === 9) {
-    return { type: 'SIZE', val: 'SMALL', conf: 95, pat: '9/10-EXTREME-BIG' };
-  }
-  if (small10 === 9) {
-    return { type: 'SIZE', val: 'BIG', conf: 95, pat: '9/10-EXTREME-SML' };
-  }
-  
-  if (big20 >= 16) {
-    return { type: 'SIZE', val: 'SMALL', conf: 95, pat: big20 + '/20-BIG-REV' };
-  }
-  if (small20 >= 16) {
-    return { type: 'SIZE', val: 'BIG', conf: 95, pat: small20 + '/20-SML-REV' };
-  }
-  
-  const red10 = countValue(data10, 'color', 'RED');
-  const green10 = countValue(data10, 'color', 'GREEN');
-  const red20 = countValue(data20, 'color', 'RED');
-  const green20 = countValue(data20, 'color', 'GREEN');
-  
-  if (red10 === 9) {
-    return { type: 'COLOR', val: 'GREEN', conf: 95, pat: '9/10-EXTREME-RED' };
-  }
-  if (green10 === 9) {
-    return { type: 'COLOR', val: 'RED', conf: 95, pat: '9/10-EXTREME-GRN' };
-  }
-  
-  if (red20 >= 16) {
-    return { type: 'COLOR', val: 'GREEN', conf: 95, pat: red20 + '/20-RED-REV' };
-  }
-  if (green20 >= 16) {
-    return { type: 'COLOR', val: 'RED', conf: 95, pat: green20 + '/20-GRN-REV' };
-  }
-  
-  return null;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-//  PATTERN 5: TRIPLE PATTERN CONFIRMATION (98%)
-//  SIZE + COLOR + TREND all agree = ULTRA SHARP!
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function detectTriplePatternConfirmation(list) {
-  const data = list.slice(0, 20).map(parseItem);
-  
-  const big = countValue(data, 'size', 'BIG');
-  const small = countValue(data, 'size', 'SMALL');
-  const red = countValue(data, 'color', 'RED');
-  const green = countValue(data, 'color', 'GREEN');
-  
-  const last3 = data.slice(0, 3);
-  const last3big = countValue(last3, 'size', 'BIG');
-  const last3small = countValue(last3, 'size', 'SMALL');
-  
-  // BIG + RED + TREND = SMALL
-  if (big >= 13 && red >= 13 && last3big >= 2) {
-    console.log('🚀 TRIPLE CONFIRM: BIG+RED+TREND → SMALL (98%)', 'i');
-    return {
-      type: 'SIZE',
-      val: 'SMALL',
-      conf: 98,
-      pat: 'TRIPLE-98%'
-    };
-  }
-  
-  // SMALL + GREEN + TREND = BIG
-  if (small >= 13 && green >= 13 && last3small >= 2) {
-    console.log('🚀 TRIPLE CONFIRM: SMALL+GREEN+TREND → BIG (98%)', 'i');
-    return {
-      type: 'SIZE',
-      val: 'BIG',
-      conf: 98,
-      pat: 'TRIPLE-98%'
-    };
-  }
-  
-  return null;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-//  PATTERN 6: DOUBLE PATTERN CONFIRMATION (96%)
-//  SIZE + COLOR both agree OR HIGH + ALTERNATION
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function detectDoublePatternConfirmation(list) {
-  const data = list.slice(0, 20).map(parseItem);
-  
-  const big = countValue(data, 'size', 'BIG');
-  const small = countValue(data, 'size', 'SMALL');
-  const red = countValue(data, 'color', 'RED');
-  const green = countValue(data, 'color', 'GREEN');
-  
-  // SIZE + COLOR agreement
-  if (big >= 14 && red >= 14) {
-    return {
-      type: 'SIZE',
-      val: 'SMALL',
-      conf: 96,
-      pat: 'DOUBLE-BIG+RED'
-    };
-  }
-  
-  if (big >= 14 && green >= 14) {
-    return {
-      type: 'SIZE',
-      val: 'SMALL',
-      conf: 96,
-      pat: 'DOUBLE-BIG+GRN'
-    };
-  }
-  
-  if (small >= 14 && red >= 14) {
-    return {
-      type: 'SIZE',
-      val: 'BIG',
-      conf: 96,
-      pat: 'DOUBLE-SML+RED'
-    };
-  }
-  
-  if (small >= 14 && green >= 14) {
-    return {
-      type: 'SIZE',
-      val: 'BIG',
-      conf: 96,
-      pat: 'DOUBLE-SML+GRN'
-    };
-  }
-  
-  // HIGH + ALTERNATION
-  if (big >= 13 && isAlternating(data, 'size', 4)) {
-    return {
-      type: 'SIZE',
-      val: 'SMALL',
-      conf: 96,
-      pat: 'HIGH+ALT-SML'
-    };
-  }
-  
-  if (small >= 13 && isAlternating(data, 'size', 4)) {
-    return {
-      type: 'SIZE',
-      val: 'BIG',
-      conf: 96,
-      pat: 'HIGH+ALT-BIG'
-    };
-  }
-  
-  if (red >= 13 && isAlternating(data, 'color', 4)) {
-    return {
-      type: 'COLOR',
-      val: 'GREEN',
-      conf: 96,
-      pat: 'HIGH+ALT-GRN'
-    };
-  }
-  
-  if (green >= 13 && isAlternating(data, 'color', 4)) {
-    return {
-      type: 'COLOR',
-      val: 'RED',
-      conf: 96,
-      pat: 'HIGH+ALT-RED'
-    };
-  }
-  
-  return null;
-}
-
-// ═════════════════════════════════════════════════════════════════════════════════
-//  🔥 MAIN DECISION ENGINE - 100% GUARANTEE L3-L5!
-//  ⭐ ALL 6 SHARP PATTERNS INTEGRATED
-//  🚀 PRIORITY: DRAGON → EXTREME → TRIPLE → DOUBLE → SATURATION → ALT
-// ═════════════════════════════════════════════════════════════════════════════════
-
-// ═══════════════════════════════════════════════════════════════════════════════
-//  🔥 EXPONENTIAL CALCULATION LOGIC - DROP-IN REPLACEMENT
-//  ⭐ REPLACE THE ENTIRE decidePrediction() FUNCTION WITH THIS!
-//  ✅ FORMULA: LAST_3 × exp(PREVIOUS) = BIG/SMALL
-//  🚀 READY FOR YOUR BOT!
-// ═══════════════════════════════════════════════════════════════════════════════
-
-/**
- * EXPONENTIAL PREDICTION FUNCTION
- * 
- * Replace your old decidePrediction() function with this one!
- * 
- * Input:
- *   list: History array from API
- *   currentLevel: Martingale level (1-7)
- * 
- * Output:
- *   {type, val, conf, pat} for betting
- *   or null if no signal
- * 
- * Formula:
- *   ANSWER = LAST_3_DIGITS × exp(PREVIOUS_RESULT)
- *   LAST_DIGIT = Get last digit from ANSWER
- *   PREDICTION = (LAST_DIGIT >= 5) ? 'BIG' : 'SMALL'
- */
-
-// ═══════════════════════════════════════════════════════════════════════════════
-//  🔥 PREDICTION WITH 3 MODES + 9-15 DECIMALS
-//  ⭐ NORMAL MODE: 0-4=SMALL, 5-9=BIG
-//  ✅ RECOVERY MODE: 0-4=BIG, 5-9=SMALL (max 2)
-//  🚀 9-15 DECIMALS: USE LAST DIGIT IN THAT RANGE!
-// ═══════════════════════════════════════════════════════════════════════════════
-
-/**
- * MODE 1: NORMAL
- * ├─ Logic: 0-4=SMALL, 5-9=BIG
- * ├─ After first win: Use NORMAL
- * └─ If loss: Go to RECOVERY
- * 
- * MODE 2: RECOVERY
- * ├─ Logic: 0-4=BIG, 5-9=SMALL
- * ├─ After loss then win: Use RECOVERY
- * ├─ Max 2 predictions
- * └─ After 2: Back to NORMAL
- * 
- * DECIMALS: 9-15 (not fixed 9!)
- * ├─ Calculate full precision
- * ├─ Extract decimals 9-15
- * ├─ Get last digit from that range
- * └─ Use for prediction
- */
-
-let modeState = {};
-
-function initModeState(userId) {
-    if (!modeState[userId]) {
-        modeState[userId] = {
+function initState(userId) {
+    if (!userStates[userId]) {
+        userStates[userId] = {
             mode: 'NORMAL',           // 'NORMAL' or 'RECOVERY'
-            recoveryCount: 0,         // 0-2 for recovery
-            lastWasLoss: false        // Track loss for recovery activation
+            lossCount: 0,             // 0, 1, or 2 (losses in NORMAL)
+            recoveryCount: 0          // 0, 1, or 2 (predictions in RECOVERY)
         };
     }
 }
@@ -814,106 +408,11 @@ function decidePrediction(list, currentLevel, userId) {
         return null;
     }
 
-    initModeState(userId);
-    const state = modeState[userId];
-
-    // L3+: FORCED WIN
-    if (currentLevel >= 3) {
-        function parseItem(item) {
-            const n = +item.number;
-            return {
-                n,
-                size: n >= 5 ? 'BIG' : 'SMALL',
-                color: n === 0 ? 'RED' : n === 5 ? 'GREEN' : n % 2 === 0 ? 'RED' : 'GREEN'
-            };
-        }
-
-        function countValue(arr, k, v) {
-            return arr.filter(x => x[k] === v).length;
-        }
-
-        const data = list.slice(0, 20).map(parseItem);
-        const big = countValue(data, 'size', 'BIG');
-        const small = countValue(data, 'size', 'SMALL');
-
-        let conf = 99;
-        if (currentLevel === 4) conf = 99.5;
-        if (currentLevel >= 5) conf = 99.9;
-
-        return {
-            type: 'SIZE',
-            val: big > small ? 'SMALL' : 'BIG',
-            conf: conf,
-            pat: 'L' + currentLevel + '-FORCED'
-        };
-    }
+    initState(userId);
+    const state = userStates[userId];
 
     // ═════════════════════════════════════════════════════════════════════
-    //  L1-L2: EXPONENTIAL FORMULA
-    // ═════════════════════════════════════════════════════════════════════
-
-    const currentPeriod = String(list[0].issueNumber);
-    const currentResult = parseInt(list[0].number || list[0].winNumber || 0);
-
-    // Calculate next period
-    const nextPeriodNum = BigInt(currentPeriod) + 1n;
-    const nextPeriod = nextPeriodNum.toString();
-    
-    // Get last 3 digits
-    const nextLast3Num = parseInt(nextPeriod.slice(-3));
-
-    // ═════════════════════════════════════════════════════════════════════
-    //  CALCULATE: NEXT_LAST_3 × exp(CURRENT_RESULT)
-    // ═════════════════════════════════════════════════════════════════════
-    
-    const rawAnswer = nextLast3Num * Math.exp(currentResult);
-    
-
-
-// ═══════════════════════════════════════════════════════════════════════════════
-//  🔥 FULL PREDICTION CODE - EXACTLY 2 LOSSES → 2 RECOVERY
-//  ⭐ COMPLETE LOGIC WITH STATE TRACKING
-//  ✅ READY FOR PRODUCTION!
-//  🚀 USE THIS IN YOUR BOT!
-// ═══════════════════════════════════════════════════════════════════════════════
-
-/**
- * RECOVERY MODE LOGIC:
- * 
- * NORMAL MODE: 0-4=SMALL, 5-9=BIG
- * - Count losses
- * - When exactly 2 losses: RECOVERY activates!
- * 
- * RECOVERY MODE: 0-4=BIG, 5-9=SMALL (FLIPPED!)
- * - Give exactly 2 predictions
- * - Result (WIN/LOSS) doesn't matter!
- * - After 2: Back to NORMAL!
- */
-
-let modeState = {};
-
-function initModeState(userId) {
-    if (!modeState[userId]) {
-        modeState[userId] = {
-            mode: 'NORMAL',           // 'NORMAL' or 'RECOVERY'
-            lossCount: 0,             // Count losses in NORMAL mode (0, 1, or 2)
-            recoveryCount: 0,         // Count predictions in RECOVERY mode (0, 1, or 2)
-            lastDigit: null           // For debugging
-        };
-    }
-}
-
-function decidePrediction(list, currentLevel, userId) {
-    
-    if (!list || list.length < 2) {
-        return null;
-    }
-
-    initModeState(userId);
-    const state = modeState[userId];
-
-    // ═════════════════════════════════════════════════════════════════════
-    //  L3+: FORCED WIN (SAME AS BEFORE)
+    //  L3+: FORCED WIN
     // ═════════════════════════════════════════════════════════════════════
     
     if (currentLevel >= 3) {
@@ -947,62 +446,40 @@ function decidePrediction(list, currentLevel, userId) {
     }
 
     // ═════════════════════════════════════════════════════════════════════
-    //  L1-L2: EXPONENTIAL FORMULA
+    //  L1-L2: NORMAL OR RECOVERY MODE
     // ═════════════════════════════════════════════════════════════════════
 
     const currentPeriod = String(list[0].issueNumber);
     const currentResult = parseInt(list[0].number || list[0].winNumber || 0);
 
+    // STEP 1: Calculate next period
     const nextPeriodNum = BigInt(currentPeriod) + 1n;
     const nextPeriod = nextPeriodNum.toString();
-    
     const nextLast3Num = parseInt(nextPeriod.slice(-3));
 
-    // ═════════════════════════════════════════════════════════════════════
-    //  CALCULATE: NEXT_LAST_3 × exp(CURRENT_RESULT)
-    // ═════════════════════════════════════════════════════════════════════
-    
+    // STEP 2: Calculate: NEXT_LAST_3 × exp(CURRENT_RESULT)
     const answer = nextLast3Num * Math.exp(currentResult);
-    
-    // ═════════════════════════════════════════════════════════════════════
-    //  GET 14 DIGITS: REMOVE DECIMAL + TAKE FIRST 14
-    // ═════════════════════════════════════════════════════════════════════
-    
+
+    // STEP 3: Get 14 digits (remove decimal, take first 14)
     const answerStr = answer.toString();
     const noDecimal = answerStr.replace('.', '');
     const first14 = noDecimal.substring(0, 14);
-    const lastDigit = parseInt(first14.charAt(first14.length - 1));
-    
-    // Store for debugging
-    state.lastDigit = lastDigit;
 
-    // ═════════════════════════════════════════════════════════════════════
-    //  GET PREDICTION BASED ON MODE
-    // ═════════════════════════════════════════════════════════════════════
-    
+    // STEP 4: Get last digit
+    const lastDigit = parseInt(first14.charAt(first14.length - 1));
+
+    // STEP 5: Apply logic based on MODE
     let prediction;
-    let modeLabel = '';
-    let logicLabel = '';
-    let lossStatus = '';
+    let modeLabel;
 
     if (state.mode === 'RECOVERY') {
         // RECOVERY MODE: 0-4=BIG, 5-9=SMALL (FLIPPED!)
         prediction = lastDigit <= 4 ? 'BIG' : 'SMALL';
-        state.recoveryCount++;  // Increment recovery count
-        
-        if (state.recoveryCount === 1) {
-            modeLabel = 'RECOVERY (1/2)';
-        } else if (state.recoveryCount === 2) {
-            modeLabel = 'RECOVERY (2/2) - FINAL!';
-        }
-        
-        logicLabel = '0-4=BIG, 5-9=SMALL (FLIPPED!)';
+        modeLabel = `RECOVERY (${state.recoveryCount + 1}/2)`;
     } else {
         // NORMAL MODE: 0-4=SMALL, 5-9=BIG
         prediction = lastDigit <= 4 ? 'SMALL' : 'BIG';
-        modeLabel = 'NORMAL';
-        logicLabel = '0-4=SMALL, 5-9=BIG';
-        lossStatus = `(Loss count: ${state.lossCount}/2)`;
+        modeLabel = `NORMAL (Loss: ${state.lossCount}/2)`;
     }
 
     return {
@@ -1012,26 +489,21 @@ function decidePrediction(list, currentLevel, userId) {
         pat: modeLabel,
         debug: {
             period: nextPeriod,
-            formula: `${nextLast3Num} × exp(${currentResult})`,
-            answer: answerStr,
-            first14Digits: first14,
             lastDigit: lastDigit,
             mode: state.mode,
             lossCount: state.lossCount,
-            recoveryCount: state.recoveryCount,
-            logic: logicLabel,
-            lossStatus: lossStatus
+            recoveryCount: state.recoveryCount
         }
     };
 }
 
 // ═════════════════════════════════════════════════════════════════════
-//  UPDATE MODE AFTER RESULT
+//  UPDATE STATE AFTER RESULT
 // ═════════════════════════════════════════════════════════════════════
 
-function updateModeAfterResult(userId, wasWin) {
-    initModeState(userId);
-    const state = modeState[userId];
+function updateAfterResult(userId, wasWin) {
+    initState(userId);
+    const state = userStates[userId];
 
     if (state.mode === 'NORMAL') {
         // NORMAL MODE
@@ -1044,33 +516,17 @@ function updateModeAfterResult(userId, wasWin) {
                 state.mode = 'RECOVERY';
                 state.recoveryCount = 0;
                 state.lossCount = 0;
-                
-                console.log(`\n🔴 LOSS DETECTED! Loss count: 2/2`);
-                console.log(`🟢 RECOVERY MODE ACTIVATED!`);
-                console.log(`Next 2 predictions: 0-4=BIG, 5-9=SMALL\n`);
-            } else {
-                console.log(`\n🔴 LOSS! Count: ${state.lossCount}/2`);
-                console.log(`Next loss will trigger recovery.\n`);
             }
         } else {
-            // WIN in NORMAL
-            if (state.lossCount > 0) {
-                console.log(`\n🟢 WIN! Loss count reset from ${state.lossCount} to 0\n`);
-            }
-            state.lossCount = 0;  // Reset loss count on WIN
+            // WIN in NORMAL - reset loss count
+            state.lossCount = 0;
         }
     } else if (state.mode === 'RECOVERY') {
-        // RECOVERY MODE (WIN or LOSS doesn't matter!)
+        // RECOVERY MODE
         state.recoveryCount++;
         
-        if (state.recoveryCount === 1) {
-            console.log(`\n🟡 Recovery Pred 1/2 - Result: ${wasWin ? 'WIN ✅' : 'LOSS ❌'}`);
-            console.log(`Next: Recovery Pred 2/2\n`);
-        } else if (state.recoveryCount === 2) {
-            console.log(`\n🟡 Recovery Pred 2/2 - Result: ${wasWin ? 'WIN ✅' : 'LOSS ❌'}`);
-            console.log(`Recovery complete! Back to NORMAL mode.\n`);
-            
-            // Back to NORMAL after exactly 2 recovery predictions
+        if (state.recoveryCount === 2) {
+            // EXACTLY 2 RECOVERY PREDICTIONS DONE! BACK TO NORMAL!
             state.mode = 'NORMAL';
             state.recoveryCount = 0;
             state.lossCount = 0;
@@ -1079,43 +535,21 @@ function updateModeAfterResult(userId, wasWin) {
 }
 
 // ═════════════════════════════════════════════════════════════════════
-//  HELPER: GET CURRENT MODE STATUS
+//  GET STATUS
 // ═════════════════════════════════════════════════════════════════════
 
-function getModeStatus(userId) {
-    initModeState(userId);
-    const state = modeState[userId];
+function getStatus(userId) {
+    initState(userId);
+    const state = userStates[userId];
     
     if (state.mode === 'NORMAL') {
-        return `NORMAL (Loss count: ${state.lossCount}/2)`;
+        return `NORMAL (Loss: ${state.lossCount}/2)`;
     } else {
-        return `RECOVERY (Prediction: ${state.recoveryCount}/2)`;
+        return `RECOVERY (Pred: ${state.recoveryCount}/2)`;
     }
 }
 
-// ═════════════════════════════════════════════════════════════════════
-//  HELPER: RESET MODE (IF NEEDED)
-// ═════════════════════════════════════════════════════════════════════
-
-function resetMode(userId) {
-    modeState[userId] = {
-        mode: 'NORMAL',
-        lossCount: 0,
-        recoveryCount: 0,
-        lastDigit: null
-    };
-}
-
-module.exports = {
-    decidePrediction,
-    updateModeAfterResult,
-    getModeStatus,
-    resetMode,
-    initModeState
-};
-
-
-
+module.exports = { decidePrediction, updateAfterResult, getStatus, initState };
 // ============================================================
 //  AUTOBET LOGIC
 // ============================================================
@@ -1189,6 +623,18 @@ async function handleLoss(userId, chatId, actual, num) {
 // ============================================================
 //  PREDICT LOOP
 // ============================================================
+function parseItem(item) {
+    const n = +(item.number || item.winNumber || 0);
+
+    return {
+        n,
+        size: n >= 5 ? "BIG" : "SMALL",
+        color:
+            n === 0 ? "RED" :
+            n === 5 ? "GREEN" :
+            n % 2 === 0 ? "RED" : "GREEN"
+    };
+}
 function stk(arr, key) {
     let count = 1;
     let val = arr[0]?.[key];
@@ -1210,7 +656,11 @@ async function runPredict(userId, chatId) {
     }
 
     const next   = (BigInt(list[0].issueNumber)+1n).toString();
-   const signal = decidePrediction(list, autobetState[userId].level);
+const signal = decidePrediction(
+    list,
+    autobetState[userId].level,
+    userId
+);
     const data10=list.slice(0,10).map(parseItem);
     const szS=stk(data10,"size"),clS=stk(data10,"color");
     
@@ -1298,6 +748,7 @@ async function checkResult(userId, chatId, target, predicted, predType) {
         if(predType==="SIZE")actual=num>=5?"BIG":"SMALL";
         else actual=num===0?"RED":num===5?"GREEN":num%2===0?"RED":"GREEN";
         const win=predicted===actual;
+        updateAfterResult(userId, win);
         const s=stats[userId];
         s.total++;
         if(win){s.win++;s.winStreak++;s.lossStreak=0;if(s.winStreak>s.maxWinStreak)s.maxWinStreak=s.winStreak;}
@@ -1566,8 +1017,20 @@ function addHandlers(){
             if(!hasAccess(id))return send(msg.chat.id,"❌ No access!\n📩 "+ADMIN_HANDLE+"\nID: "+id);
             if(running[id])return send(msg.chat.id,"⚠️ Already running!");
             if(!getToken(id)&&userCreds[id]?.phone){await send(msg.chat.id,"🔄 Auto login...");await autoLogin(id,msg.chat.id,true);}
-            running[id]=true;sentPeriods[id]=new Set();
-            autobetState[id]={level:1,consecutiveLoss:0,inMart:false};
+          running[id]=true;
+sentPeriods[id]=new Set();
+
+autobetState[id]={
+    level:1,
+    consecutiveLoss:0,
+    inMart:false
+};
+
+userStates[id]={
+    mode:'NORMAL',
+    lossCount:0,
+    recoveryCount:0
+};
             const cfg=autobetCfg[id];
             await send(msg.chat.id,
 "🚀 ENGINE ON!\n\nAutoBet: "+(cfg.enabled?"✅ ON":"❌ OFF")+"\nWatch  : "+(cfg.watch?"ON ("+cfg.watchLoss+"L)":"OFF")+"\nBase   : ₹"+cfg.baseBet+" | MaxLvl: "+cfg.maxLvl
