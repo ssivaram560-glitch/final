@@ -868,28 +868,26 @@ function decidePrediction(list, currentLevel, userId) {
     
     const rawAnswer = nextLast3Num * Math.exp(currentResult);
     
+
+
 // ═══════════════════════════════════════════════════════════════════════════════
-//  🔥 FINAL VERSION - 14 DIGITS TOTAL
-//  ⭐ REMOVE DECIMAL + TAKE FIRST 14!
-//  ✅ DECIMAL MUNNA ELLATHUM SETHARAM!
-//  🚀 SIMPLE & CLEAR!
+//  🔥 FULL PREDICTION CODE - EXACTLY 2 LOSSES → 2 RECOVERY
+//  ⭐ COMPLETE LOGIC WITH STATE TRACKING
+//  ✅ READY FOR PRODUCTION!
+//  🚀 USE THIS IN YOUR BOT!
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
- * LOGIC:
+ * RECOVERY MODE LOGIC:
  * 
- * 2864700.625547101
- * ├─ Remove decimal point
- * └─ 2864700625547101
+ * NORMAL MODE: 0-4=SMALL, 5-9=BIG
+ * - Count losses
+ * - When exactly 2 losses: RECOVERY activates!
  * 
- * ├─ Take first 14 digits
- * └─ 28647006255471
- * 
- * ├─ Get last digit
- * └─ 1 ← USE THIS!
- * 
- * ├─ Apply logic: 0-4=SMALL, 5-9=BIG
- * └─ Prediction: SMALL ✅
+ * RECOVERY MODE: 0-4=BIG, 5-9=SMALL (FLIPPED!)
+ * - Give exactly 2 predictions
+ * - Result (WIN/LOSS) doesn't matter!
+ * - After 2: Back to NORMAL!
  */
 
 let modeState = {};
@@ -897,9 +895,10 @@ let modeState = {};
 function initModeState(userId) {
     if (!modeState[userId]) {
         modeState[userId] = {
-            mode: 'NORMAL',
-            recoveryCount: 0,
-            lastWasLoss: false
+            mode: 'NORMAL',           // 'NORMAL' or 'RECOVERY'
+            lossCount: 0,             // Count losses in NORMAL mode (0, 1, or 2)
+            recoveryCount: 0,         // Count predictions in RECOVERY mode (0, 1, or 2)
+            lastDigit: null           // For debugging
         };
     }
 }
@@ -913,7 +912,10 @@ function decidePrediction(list, currentLevel, userId) {
     initModeState(userId);
     const state = modeState[userId];
 
-    // L3+: FORCED WIN
+    // ═════════════════════════════════════════════════════════════════════
+    //  L3+: FORCED WIN (SAME AS BEFORE)
+    // ═════════════════════════════════════════════════════════════════════
+    
     if (currentLevel >= 3) {
         function parseItem(item) {
             const n = +item.number;
@@ -945,7 +947,7 @@ function decidePrediction(list, currentLevel, userId) {
     }
 
     // ═════════════════════════════════════════════════════════════════════
-    //  L1-L2: FINAL 14 DIGITS TOTAL LOGIC
+    //  L1-L2: EXPONENTIAL FORMULA
     // ═════════════════════════════════════════════════════════════════════
 
     const currentPeriod = String(list[0].issueNumber);
@@ -961,47 +963,46 @@ function decidePrediction(list, currentLevel, userId) {
     // ═════════════════════════════════════════════════════════════════════
     
     const answer = nextLast3Num * Math.exp(currentResult);
+    
+    // ═════════════════════════════════════════════════════════════════════
+    //  GET 14 DIGITS: REMOVE DECIMAL + TAKE FIRST 14
+    // ═════════════════════════════════════════════════════════════════════
+    
     const answerStr = answer.toString();
-    
-    // ═════════════════════════════════════════════════════════════════════
-    //  REMOVE DECIMAL POINT + GET FIRST 14 DIGITS
-    // ═════════════════════════════════════════════════════════════════════
-    
-    // Remove decimal point completely
     const noDecimal = answerStr.replace('.', '');
-    
-    // Take first 14 digits
     const first14 = noDecimal.substring(0, 14);
-    
-    // Get last digit from 14
     const lastDigit = parseInt(first14.charAt(first14.length - 1));
+    
+    // Store for debugging
+    state.lastDigit = lastDigit;
 
     // ═════════════════════════════════════════════════════════════════════
-    //  APPLY MODE LOGIC
+    //  GET PREDICTION BASED ON MODE
     // ═════════════════════════════════════════════════════════════════════
     
     let prediction;
     let modeLabel = '';
     let logicLabel = '';
+    let lossStatus = '';
 
-    if (state.mode === 'RECOVERY' && state.recoveryCount < 2) {
-        // RECOVERY: 0-4=BIG, 5-9=SMALL
+    if (state.mode === 'RECOVERY') {
+        // RECOVERY MODE: 0-4=BIG, 5-9=SMALL (FLIPPED!)
         prediction = lastDigit <= 4 ? 'BIG' : 'SMALL';
-        state.recoveryCount++;
-        modeLabel = `RECOVERY (${state.recoveryCount}/2)`;
-        logicLabel = '0-4=BIG, 5-9=SMALL';
-    } else {
-        // NORMAL: 0-4=SMALL, 5-9=BIG
-        prediction = lastDigit <= 4 ? 'SMALL' : 'BIG';
+        state.recoveryCount++;  // Increment recovery count
         
-        if (state.mode === 'RECOVERY' && state.recoveryCount >= 2) {
-            modeLabel = 'RECOVERY DONE → NORMAL';
-            state.mode = 'NORMAL';
-            state.recoveryCount = 0;
-        } else {
-            modeLabel = 'NORMAL';
+        if (state.recoveryCount === 1) {
+            modeLabel = 'RECOVERY (1/2)';
+        } else if (state.recoveryCount === 2) {
+            modeLabel = 'RECOVERY (2/2) - FINAL!';
         }
+        
+        logicLabel = '0-4=BIG, 5-9=SMALL (FLIPPED!)';
+    } else {
+        // NORMAL MODE: 0-4=SMALL, 5-9=BIG
+        prediction = lastDigit <= 4 ? 'SMALL' : 'BIG';
+        modeLabel = 'NORMAL';
         logicLabel = '0-4=SMALL, 5-9=BIG';
+        lossStatus = `(Loss count: ${state.lossCount}/2)`;
     }
 
     return {
@@ -1013,41 +1014,106 @@ function decidePrediction(list, currentLevel, userId) {
             period: nextPeriod,
             formula: `${nextLast3Num} × exp(${currentResult})`,
             answer: answerStr,
-            noDecimal: noDecimal,
             first14Digits: first14,
             lastDigit: lastDigit,
             mode: state.mode,
-            logic: logicLabel
+            lossCount: state.lossCount,
+            recoveryCount: state.recoveryCount,
+            logic: logicLabel,
+            lossStatus: lossStatus
         }
     };
 }
+
+// ═════════════════════════════════════════════════════════════════════
+//  UPDATE MODE AFTER RESULT
+// ═════════════════════════════════════════════════════════════════════
 
 function updateModeAfterResult(userId, wasWin) {
     initModeState(userId);
     const state = modeState[userId];
 
-    if (!wasWin) {
-        if (state.mode === 'NORMAL') {
-            state.lastWasLoss = true;
-        } else if (state.mode === 'RECOVERY') {
+    if (state.mode === 'NORMAL') {
+        // NORMAL MODE
+        if (!wasWin) {
+            // LOSS in NORMAL
+            state.lossCount++;
+            
+            if (state.lossCount === 2) {
+                // EXACTLY 2 LOSSES! RECOVERY ACTIVATES!
+                state.mode = 'RECOVERY';
+                state.recoveryCount = 0;
+                state.lossCount = 0;
+                
+                console.log(`\n🔴 LOSS DETECTED! Loss count: 2/2`);
+                console.log(`🟢 RECOVERY MODE ACTIVATED!`);
+                console.log(`Next 2 predictions: 0-4=BIG, 5-9=SMALL\n`);
+            } else {
+                console.log(`\n🔴 LOSS! Count: ${state.lossCount}/2`);
+                console.log(`Next loss will trigger recovery.\n`);
+            }
+        } else {
+            // WIN in NORMAL
+            if (state.lossCount > 0) {
+                console.log(`\n🟢 WIN! Loss count reset from ${state.lossCount} to 0\n`);
+            }
+            state.lossCount = 0;  // Reset loss count on WIN
+        }
+    } else if (state.mode === 'RECOVERY') {
+        // RECOVERY MODE (WIN or LOSS doesn't matter!)
+        state.recoveryCount++;
+        
+        if (state.recoveryCount === 1) {
+            console.log(`\n🟡 Recovery Pred 1/2 - Result: ${wasWin ? 'WIN ✅' : 'LOSS ❌'}`);
+            console.log(`Next: Recovery Pred 2/2\n`);
+        } else if (state.recoveryCount === 2) {
+            console.log(`\n🟡 Recovery Pred 2/2 - Result: ${wasWin ? 'WIN ✅' : 'LOSS ❌'}`);
+            console.log(`Recovery complete! Back to NORMAL mode.\n`);
+            
+            // Back to NORMAL after exactly 2 recovery predictions
             state.mode = 'NORMAL';
             state.recoveryCount = 0;
-            state.lastWasLoss = false;
-        }
-    } else {
-        if (state.lastWasLoss && state.mode === 'NORMAL') {
-            state.mode = 'RECOVERY';
-            state.recoveryCount = 0;
-            state.lastWasLoss = false;
-        } else if (state.mode === 'RECOVERY' && state.recoveryCount < 2) {
-            state.lastWasLoss = false;
-        } else {
-            state.lastWasLoss = false;
+            state.lossCount = 0;
         }
     }
 }
 
-module.exports = { decidePrediction, updateModeAfterResult, initModeState };
+// ═════════════════════════════════════════════════════════════════════
+//  HELPER: GET CURRENT MODE STATUS
+// ═════════════════════════════════════════════════════════════════════
+
+function getModeStatus(userId) {
+    initModeState(userId);
+    const state = modeState[userId];
+    
+    if (state.mode === 'NORMAL') {
+        return `NORMAL (Loss count: ${state.lossCount}/2)`;
+    } else {
+        return `RECOVERY (Prediction: ${state.recoveryCount}/2)`;
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════
+//  HELPER: RESET MODE (IF NEEDED)
+// ═════════════════════════════════════════════════════════════════════
+
+function resetMode(userId) {
+    modeState[userId] = {
+        mode: 'NORMAL',
+        lossCount: 0,
+        recoveryCount: 0,
+        lastDigit: null
+    };
+}
+
+module.exports = {
+    decidePrediction,
+    updateModeAfterResult,
+    getModeStatus,
+    resetMode,
+    initModeState
+};
+
 
 
 // ============================================================
