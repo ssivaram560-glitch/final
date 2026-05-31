@@ -395,9 +395,10 @@ let userStates = {};
 function initState(userId) {
     if (!userStates[userId]) {
         userStates[userId] = {
-            mode: 'NORMAL',           // 'NORMAL' or 'RECOVERY'
-            lossCount: 0,             // 0, 1, or 2 (losses in NORMAL)
-            recoveryCount: 0          // 0, 1, or 2 (predictions in RECOVERY)
+            mode: 'NORMAL',
+            lossCount: 0,
+            recoveryCount: 0,
+            winStreak: 0
         };
     }
 }
@@ -502,38 +503,39 @@ function decidePrediction(list, currentLevel, userId) {
 // ═════════════════════════════════════════════════════════════════════
 
 function updateAfterResult(userId, wasWin) {
+
     initState(userId);
     const state = userStates[userId];
 
-    if (state.mode === 'NORMAL') {
-        // NORMAL MODE
-        if (!wasWin) {
-            // LOSS in NORMAL
-            state.lossCount++;
-            
-            if (state.lossCount === 2) {
-                // EXACTLY 2 LOSSES! RECOVERY ACTIVATES!
-                state.mode = 'RECOVERY';
-                state.recoveryCount = 0;
-                state.lossCount = 0;
-            }
-        } else {
-            // WIN in NORMAL - reset loss count
-            state.lossCount = 0;
+    if (wasWin) {
+
+        state.winStreak++;
+
+    } else {
+
+        // 1 or 2 wins ku apram loss vandha
+        if (
+            state.mode === 'NORMAL' &&
+            state.winStreak >= 1 &&
+            state.winStreak <= 2
+        ) {
+            state.mode = 'RECOVERY';
+            state.recoveryCount = 0;
         }
-    } else if (state.mode === 'RECOVERY') {
-        // RECOVERY MODE
+
+        state.winStreak = 0;
+    }
+
+    if (state.mode === 'RECOVERY') {
+
         state.recoveryCount++;
-        
-        if (state.recoveryCount === 2) {
-            // EXACTLY 2 RECOVERY PREDICTIONS DONE! BACK TO NORMAL!
+
+        if (state.recoveryCount >= 2) {
             state.mode = 'NORMAL';
             state.recoveryCount = 0;
-            state.lossCount = 0;
         }
     }
 }
-
 // ═════════════════════════════════════════════════════════════════════
 //  GET STATUS
 // ═════════════════════════════════════════════════════════════════════
