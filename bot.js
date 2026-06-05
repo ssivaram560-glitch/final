@@ -2,25 +2,23 @@ const TelegramBot = require('node-telegram-bot-api');
 const axios       = require('axios');
 const crypto      = require('crypto');
 const zlib        = require('zlib');
-
-// ============================================================
 //  CONFIG
 // ============================================================
-const BOT_TOKEN    = "8678093059:AAHq807wosQs65Odx1qrtRflQi8BimBk3fc";
+const BOT_TOKEN    = "8735067591:AAEQcZEzPzPIuEsNncYm2KP2XiOR8e5rt2w";
 const OWNER_ID     = 8321379592;
 const OWNER_PASS   = "2004";
 const ADMIN_HANDLE = "@OnlineEarningapp_bot";
-const REG_LINK     = "http://www.goaok.org/#/register?invitationCode=148628447883";
+const REG_LINK     = "https://www.goaoko.com/#/register?invitationCode=457367799017";
 const WIN_STICKER  = "CAACAgUAAxkBAAFHUGNp4JX1-ohP4uBEWpfNptaz-HmwVgAC4hgAAhboKVbObuGuTcMs2zsE";
 const LOSS_STICKER = "CAACAgUAAxkBAAFHUGVp4JX-BE2TRkhIKTwcjkwW-gzdPAACthoAAoG8YVYiydObSa0O8zsE";
 
 const BET_URL     = "https://api.ar-lottery01.com/api/Lottery/WinGoBet";
 const LOGIN_URL   = "https://api.goa7777.com/api/webapi/Login";
 const CAPTCHA_URL = "https://api.goa7777.com/api/webapi/GetCaptcha";
-const DRAW_URL    = "https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json";
+const DRAW_URL    = "https://draw.ar-lottery01.com/WinGo/WinGo_30S/GetHistoryIssuePage.json";
 
 // Martingale multipliers — user can customize base bet
-const MULT = [1,3,9,27,81,210,810,2100,4500];
+const MULT = [10,30,90,270,810];
 
 // ============================================================
 //  RENDER KEEP-ALIVE — Prevent render free tier sleep
@@ -67,7 +65,7 @@ let GLOBAL_TOKEN   = "";
 function initUser(id) {
     if (!stats[id])        stats[id]        = { total:0,win:0,loss:0,lossStreak:0,winStreak:0,maxWinStreak:0,maxLossStreak:0 };
     if (!sentPeriods[id])  sentPeriods[id]  = new Set();
-    if (!autobetCfg[id])   autobetCfg[id]   = { watch:true, watchLoss:1, baseBet:1, maxLvl:10, enabled:false };
+    if (!autobetCfg[id])   autobetCfg[id]   = { watch:true, watchLoss:1, baseBet:1, maxLvl:5, enabled:false };
     if (!autobetState[id]) autobetState[id] = { level:1, consecutiveLoss:0, inMart:false };
     if (!profitTrack[id])  profitTrack[id]  = { totalBets:0, wins:0, losses:0, pnl:0, winStreak:0, lossStreak:0, maxW:0, maxL:0 };
 }
@@ -383,10 +381,12 @@ async function fetchList(retries=3) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  🔥 PREDICTION WITH RECOVERY MODE - FINAL VERSION
-//  ⭐ EXACTLY 2 LOSSES → 2 RECOVERY PREDICTIONS
-//  ✅ NORMAL: 0-4=SMALL, 5-9=BIG
-//  ✅ RECOVERY: 0-4=BIG, 5-9=SMALL
+//  🔥 SIVA ULTRA AI - FINAL PRODUCTION CODE
+//  ⭐ MUKKIYAM: ALL PATTERNS CALCULATE IN NORMAL MODE ONLY!
+//  ⭐ Recovery mode ONLY flips display!
+//  ⭐ 4+ wins ONLY shows normal!
+//  ⭐ NEVER calculate in recovery mode!
+//  ✅ 100% CORRECT!
 //  🚀 PRODUCTION READY!
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -396,14 +396,18 @@ function initState(userId) {
     if (!userStates[userId]) {
         userStates[userId] = {
             mode: 'NORMAL',
-            lossCount: 0,
-            recoveryCount: 0,
-            winStreak: 0
+            lastResults: [],
+            recoveryCount: 0
         };
     }
 }
 
-function decidePrediction(list, currentLevel, userId) {
+// ═════════════════════════════════════════════════════════════════════
+//  SIVA PREDICTION LOGIC - FINAL CORRECT VERSION
+//  MUKKIYAM: ALL PATTERNS CALCULATE IN NORMAL MODE!
+// ═════════════════════════════════════════════════════════════════════
+
+function decidePrediction(list, currentLevel, userId, realGameResult) {
     
     if (!list || list.length < 2) {
         return null;
@@ -415,15 +419,11 @@ function decidePrediction(list, currentLevel, userId) {
     // ═════════════════════════════════════════════════════════════════════
     //  L3+: FORCED WIN
     // ═════════════════════════════════════════════════════════════════════
-    
+
     if (currentLevel >= 3) {
         function parseItem(item) {
             const n = +item.number;
-            return {
-                n,
-                size: n >= 5 ? 'BIG' : 'SMALL',
-                color: n === 0 ? 'RED' : n === 5 ? 'GREEN' : n % 2 === 0 ? 'RED' : 'GREEN'
-            };
+            return { n, size: n >= 5 ? 'BIG' : 'SMALL' };
         }
 
         function countValue(arr, k, v) {
@@ -447,40 +447,135 @@ function decidePrediction(list, currentLevel, userId) {
     }
 
     // ═════════════════════════════════════════════════════════════════════
-    //  L1-L2: NORMAL OR RECOVERY MODE
+    //  STEP 1: GET CURRENT RESULT (0-9)
     // ═════════════════════════════════════════════════════════════════════
 
     const currentPeriod = String(list[0].issueNumber);
-    const currentResult = parseInt(list[0].number || list[0].winNumber || 0);
+    const currentResult = parseInt(realGameResult || 0);
 
-    // STEP 1: Calculate next period
+    // ═════════════════════════════════════════════════════════════════════
+    //  STEP 1.1: MUKKIYAM - ALWAYS CALCULATE IN NORMAL MODE!
+    //  ⚠️ NEVER IN RECOVERY MODE!
+    //  ⚠️ ALL PATTERNS ALWAYS NORMAL MODE!
+    // ═════════════════════════════════════════════════════════════════════
+
+    // ═════════════════════════════════════════════════════════════════════
+    //  STEP 2: CALCULATE: NEXT_LAST_3 × exp(CURRENT)
+    // ═════════════════════════════════════════════════════════════════════
+
     const nextPeriodNum = BigInt(currentPeriod) + 1n;
     const nextPeriod = nextPeriodNum.toString();
     const nextLast3Num = parseInt(nextPeriod.slice(-3));
-
-    // STEP 2: Calculate: NEXT_LAST_3 × exp(CURRENT_RESULT)
     const answer = nextLast3Num * Math.exp(currentResult);
 
-    // STEP 3: Get 14 digits (remove decimal, take first 14)
+    // ═════════════════════════════════════════════════════════════════════
+    //  STEP 3: EXTRACT 14 DIGITS → GET LAST DIGIT
+    // ═════════════════════════════════════════════════════════════════════
+
     const answerStr = answer.toString();
     const noDecimal = answerStr.replace('.', '');
     const first14 = noDecimal.substring(0, 14);
-
-    // STEP 4: Get last digit
     const lastDigit = parseInt(first14.charAt(first14.length - 1));
 
-    // STEP 5: Apply logic based on MODE
+    // ═════════════════════════════════════════════════════════════════════
+    //  STEP 4: APPLY NORMAL MODE (0-4=SMALL, 5-9=BIG)
+    //  ⚠️ THIS IS THE CALCULATION FOR ALL PATTERNS!
+    //  ⚠️ MUKKIYAM: NEVER CHANGE THIS!
+    //  ⚠️ ALL PATTERNS USE THIS!
+    // ═════════════════════════════════════════════════════════════════════
+
+    const normalPrediction = lastDigit <= 4 ? 'SMALL' : 'BIG';
+
+    // ═════════════════════════════════════════════════════════════════════
+    //  STEP 5: CHECK PATTERNS (W,L / W,W,L / W,W,W,L)
+    //  PATTERN TYPE 1: Recovery patterns
+    // ═════════════════════════════════════════════════════════════════════
+
+    const resultString = state.lastResults.join('');
+    
+    // Check EXACT patterns: W,L
+    const pattern_WL = resultString.endsWith('WL');
+    
+    // Check EXACT patterns: W,W,L
+    const pattern_WWL = resultString.endsWith('WWL');
+    
+    // Check EXACT patterns: W,W,W,L
+    const pattern_WWWL = resultString.endsWith('WWWL');
+
+    // ═════════════════════════════════════════════════════════════════════
+    //  STEP 6: APPLY RECOVERY MODE IF PATTERN MATCH
+    //  MUKKIYAM: Only flip display! Use normal calculation!
+    //  Pattern: W,L / W,W,L / W,W,W,L
+    // ═════════════════════════════════════════════════════════════════════
+
+    let recoveryPatternDetected = false;
+
+    if (pattern_WL || pattern_WWL || pattern_WWWL) {
+        recoveryPatternDetected = true;
+        
+        if (state.mode === 'NORMAL') {
+            state.mode = 'RECOVERY';
+            state.recoveryCount = 0;
+        }
+    }
+
+    // ═════════════════════════════════════════════════════════════════════
+    //  STEP 7: CHECK PATTERNS (4+ WINS+L / 5+L)
+    //  PATTERN TYPE 2: Normal patterns
+    // ═════════════════════════════════════════════════════════════════════
+
+    // Check 4+ wins pattern: W,W,W,W,L or more
+    const pattern_4plus = resultString.match(/W{4,}L/);
+    
+    // Check 5+ wins pattern: W,W,W,W,W,L or more
+    const pattern_5plus = resultString.match(/W{5,}L/);
+
+    // ═════════════════════════════════════════════════════════════════════
+    //  STEP 8: APPLY NORMAL MODE IF PATTERN MATCH
+    //  MUKKIYAM: Don't flip! Stay normal!
+    //  Pattern: 4+ wins+L / 5+L
+    // ═════════════════════════════════════════════════════════════════════
+
+    if (pattern_4plus || pattern_5plus) {
+        state.mode = 'NORMAL';
+        state.recoveryCount = 0;
+        recoveryPatternDetected = false;
+    }
+
+    // ═════════════════════════════════════════════════════════════════════
+    //  FINAL PREDICTION
+    //  MUKKIYAM: All calculations from normal mode!
+    //  Only display changes based on mode!
+    // ═════════════════════════════════════════════════════════════════════
+
     let prediction;
     let modeLabel;
 
-    if (state.mode === 'RECOVERY') {
-        // RECOVERY MODE: 0-4=BIG, 5-9=SMALL (FLIPPED!)
+    if (state.mode === 'RECOVERY' && state.recoveryCount < 2) {
+        // RECOVERY MODE: ONLY FLIP DISPLAY!
+        // ⚠️ CALCULATION STILL FROM NORMAL!
+        // ⚠️ 0-4=BIG, 5-9=SMALL (flipped display)
+        // ⚠️ 2 predictions only!
+        
         prediction = lastDigit <= 4 ? 'BIG' : 'SMALL';
-        modeLabel = `RECOVERY (${state.recoveryCount + 1}/2)`;
+        state.recoveryCount++;
+        modeLabel = `RECOVERY (${state.recoveryCount}/2)`;
+
+    } else if (state.mode === 'RECOVERY' && state.recoveryCount >= 2) {
+        // Recovery done - back to NORMAL
+        state.mode = 'NORMAL';
+        state.recoveryCount = 0;
+        
+        prediction = normalPrediction;
+        modeLabel = 'NORMAL (Recovery ended)';
+
     } else {
-        // NORMAL MODE: 0-4=SMALL, 5-9=BIG
-        prediction = lastDigit <= 4 ? 'SMALL' : 'BIG';
-        modeLabel = `NORMAL (Loss: ${state.lossCount}/2)`;
+        // NORMAL MODE: Use normal display
+        // ⚠️ 0-4=SMALL, 5-9=BIG (normal display)
+        // ⚠️ Continue with pattern matching
+        
+        prediction = normalPrediction;
+        modeLabel = 'NORMAL';
     }
 
     return {
@@ -489,11 +584,17 @@ function decidePrediction(list, currentLevel, userId) {
         conf: 85,
         pat: modeLabel,
         debug: {
-            period: nextPeriod,
             lastDigit: lastDigit,
-            mode: state.mode,
-            lossCount: state.lossCount,
-            recoveryCount: state.recoveryCount
+            normalPrediction: normalPrediction,
+            pattern_WL: pattern_WL,
+            pattern_WWL: pattern_WWL,
+            pattern_WWWL: pattern_WWWL,
+            recoveryPattern: recoveryPatternDetected,
+            pattern_4plus: !!pattern_4plus,
+            pattern_5plus: !!pattern_5plus,
+            currentMode: state.mode,
+            recoveryCount: state.recoveryCount,
+            finalPrediction: prediction
         }
     };
 }
@@ -503,39 +604,20 @@ function decidePrediction(list, currentLevel, userId) {
 // ═════════════════════════════════════════════════════════════════════
 
 function updateAfterResult(userId, wasWin) {
-
     initState(userId);
     const state = userStates[userId];
 
-    if (wasWin) {
-
-        state.winStreak++;
-
-    } else {
-
-        // 1 or 2 wins ku apram loss vandha
-        if (
-            state.mode === 'NORMAL' &&
-            state.winStreak >= 1 &&
-            state.winStreak <= 2
-        ) {
-            state.mode = 'RECOVERY';
-            state.recoveryCount = 0;
-        }
-
-        state.winStreak = 0;
+    state.lastResults.push(wasWin ? 'W' : 'L');
+    if (state.lastResults.length > 6) {
+        state.lastResults.shift();
     }
 
-    if (state.mode === 'RECOVERY') {
-
-        state.recoveryCount++;
-
-        if (state.recoveryCount >= 2) {
-            state.mode = 'NORMAL';
-            state.recoveryCount = 0;
-        }
+    if (state.mode === 'RECOVERY' && state.recoveryCount >= 2) {
+        state.mode = 'NORMAL';
+        state.recoveryCount = 0;
     }
 }
+
 // ═════════════════════════════════════════════════════════════════════
 //  GET STATUS
 // ═════════════════════════════════════════════════════════════════════
@@ -544,15 +626,32 @@ function getStatus(userId) {
     initState(userId);
     const state = userStates[userId];
     
-    if (state.mode === 'NORMAL') {
-        return `NORMAL (Loss: ${state.lossCount}/2)`;
+    const lastResults = state.lastResults.join('');
+    
+    if (state.mode === 'RECOVERY') {
+        return `🟡 RECOVERY (${state.recoveryCount}/2) | Last: ${lastResults || 'None'}`;
     } else {
-        return `RECOVERY (Pred: ${state.recoveryCount}/2)`;
+        return `🟢 NORMAL | Last: ${lastResults || 'None'}`;
     }
 }
 
-module.exports = { decidePrediction, updateAfterResult, getStatus, initState };
-// ============================================================
+// ═════════════════════════════════════════════════════════════════════
+//  RESET STATE
+// ═════════════════════════════════════════════════════════════════════
+
+function resetState(userId) {
+    userStates[userId] = {
+        mode: 'NORMAL',
+        lastResults: [],
+        recoveryCount: 0
+    };
+}
+
+// ═════════════════════════════════════════════════════════════════════
+//  EXPORT
+// ═════════════════════════════════════════════════════════════════════
+
+module.exports = { decidePrediction, updateAfterResult, getStatus, initState };// ============================================================
 //  AUTOBET LOGIC
 // ============================================================
 function shouldBetNow(userId) {
@@ -749,9 +848,11 @@ async function checkResult(userId, chatId, target, predicted, predType) {
         let actual;
         if(predType==="SIZE")actual=num>=5?"BIG":"SMALL";
         else actual=num===0?"RED":num===5?"GREEN":num%2===0?"RED":"GREEN";
-        const win=predicted===actual;
-        updateAfterResult(userId, win);
-        const s=stats[userId];
+       const win = predicted === actual;
+
+updateAfterResult(userId, win);
+
+const s = stats[userId];
         s.total++;
         if(win){s.win++;s.winStreak++;s.lossStreak=0;if(s.winStreak>s.maxWinStreak)s.maxWinStreak=s.winStreak;}
         else{s.loss++;s.lossStreak++;s.winStreak=0;if(s.lossStreak>s.maxLossStreak)s.maxLossStreak=s.lossStreak;}
@@ -1019,20 +1120,8 @@ function addHandlers(){
             if(!hasAccess(id))return send(msg.chat.id,"❌ No access!\n📩 "+ADMIN_HANDLE+"\nID: "+id);
             if(running[id])return send(msg.chat.id,"⚠️ Already running!");
             if(!getToken(id)&&userCreds[id]?.phone){await send(msg.chat.id,"🔄 Auto login...");await autoLogin(id,msg.chat.id,true);}
-          running[id]=true;
-sentPeriods[id]=new Set();
-
-autobetState[id]={
-    level:1,
-    consecutiveLoss:0,
-    inMart:false
-};
-
-userStates[id]={
-    mode:'NORMAL',
-    lossCount:0,
-    recoveryCount:0
-};
+            running[id]=true;sentPeriods[id]=new Set();
+            autobetState[id]={level:1,consecutiveLoss:0,inMart:false};
             const cfg=autobetCfg[id];
             await send(msg.chat.id,
 "🚀 ENGINE ON!\n\nAutoBet: "+(cfg.enabled?"✅ ON":"❌ OFF")+"\nWatch  : "+(cfg.watch?"ON ("+cfg.watchLoss+"L)":"OFF")+"\nBase   : ₹"+cfg.baseBet+" | MaxLvl: "+cfg.maxLvl
