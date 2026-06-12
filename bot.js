@@ -936,5 +936,25 @@ function addHandlers(){
         if(text==="📩 Contact") send(msg.chat.id,"📩 "+ADMIN_HANDLE+"\nID: "+id);
     });
 }
-
+// 🎯 சிக்னேச்சர் எர்ரரை பிக்ஸ் பண்ண இந்த ஃபங்க்ஷனை உன் ஃபைலின் கடைசியில் போடு da Siva
+function makeBetSign(params) {
+    const crypto = require('crypto');
+    
+    // பேராமீட்டர்ஸை வரிசையாக அடுக்கி ஸ்ட்ரிங்காக மாத்துறோம்
+    const sortedKeys = Object.keys(params).sort();
+    let signStr = "";
+    for (let key of sortedKeys) {
+        if (params[key] !== undefined && params[key] !== null) {
+            signStr += key + "=" + params[key] + "&";
+        }
+    }
+    
+    // கடைசியில் இருக்கும் & குறியை தூக்குறோம்
+    if (signStr.endsWith("&")) {
+        signStr = signStr.slice(0, -1);
+    }
+    
+    // 🔐 MD5 ஆக என்க்ரிப்ட் செய்து சிக்னேச்சர் ரிட்டர்ன் பண்ணுது Siva!
+    return crypto.createHash('md5').update(signStr).digest('hex');
+}
 startBot();
