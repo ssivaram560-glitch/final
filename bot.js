@@ -2,10 +2,8 @@ const TelegramBot = require('node-telegram-bot-api');
 const axios       = require('axios');
 const crypto      = require('crypto');
 const zlib        = require('zlib');
-// 🎯 உன் ஃபைலோட முதல் வரியா (Line 1) இதை போட்டு சேவ் பண்ணு da Siva:
-const fs = require('fs');
-const path = require('path');
-const { chromium } = require('playwright');// ============================================================
+
+// ============================================================
 //  CONFIG
 // ============================================================
 const BOT_TOKEN    = "8692459169:AAE2P2DE_RaSL4SazkRlwsAlo-zbfN4uOd4";
@@ -17,12 +15,12 @@ const WIN_STICKER  = "CAACAgUAAxkBAAFHUGNp4JX1-ohP4uBEWpfNptaz-HmwVgAC4hgAAhboKV
 const LOSS_STICKER = "CAACAgUAAxkBAAFHUGVp4JX-BE2TRkhIKTwcjkwW-gzdPAACthoAAoG8YVYiydObSa0O8zsE";
 
 const BET_URL     = "https://api.ar-lottery01.com/api/Lottery/WinGoBet";
-const LOGIN_URL   = "https://api.goa7777.com/api/webapi/Login";
-const CAPTCHA_URL = "https://api.goa7777.com/api/webapi/GetCaptcha";
+const LOGIN_URL   = "https://api.bdg88zf.com/api/webapi/Login";
+const CAPTCHA_URL = "https://api.bdg88zf.com/api/webapi/GetCaptcha";
 const DRAW_URL    = "https://draw.ar-lottery01.com/WinGo/WinGo_30S/GetHistoryIssuePage.json";
 
 // Martingale multipliers — user can customize base bet
-const MULT = [50,160,360] // 🔥 இங்க base bet-க்கு நேரடியாக மடங்காகும் மடிப்புகள் தான் இருக்கணும் da!];
+const MULT = [5,10,30,90,270,810] // 🔥 இங்க base bet-க்கு நேரடியாக மடங்காகும் மடிப்புகள் தான் இருக்கணும் da!];
 
 // ============================================================
 //  RENDER KEEP-ALIVE — Prevent render free tier sleep
@@ -69,7 +67,7 @@ let GLOBAL_TOKEN   = "";
 function initUser(id) {
     if (!stats[id])        stats[id]        = { total:0,win:0,loss:0,lossStreak:0,winStreak:0,maxWinStreak:0,maxLossStreak:0 };
     if (!sentPeriods[id])  sentPeriods[id]  = new Set();
-    if (!autobetCfg[id])   autobetCfg[id]   = { watch:true, watchLoss:1, baseBet:1, maxLvl:3, enabled:false };
+    if (!autobetCfg[id])   autobetCfg[id]   = { watch:false, watchLoss:1, baseBet:1, maxLvl:6, enabled:false };
     if (!autobetState[id]) autobetState[id] = { level:1, consecutiveLoss:0, inMart:false };
     if (!profitTrack[id])  profitTrack[id]  = { totalBets:0, wins:0, losses:0, pnl:0, winStreak:0, lossStreak:0, maxW:0, maxL:0 };
 }
@@ -122,130 +120,151 @@ function getOrCreateDevice(userId) {
 // ============================================================
 //  SIGNATURES
 // ============================================================
- // 🎯 ஃபைலோட டாப்ல இது இருக்கணும் Siva!
+function makeLoginSign(params) {
+    const p = {...params};
+    delete p.signature; delete p.timestamp; delete p.track;
+    const keys = Object.keys(p).filter(k => {
+        const v = p[k];
+        if (v === null || v === undefined || v === "") return false;
+        if (typeof v === 'object') return false;
+        return true;
+    }).sort();
+    const sorted = {};
+    keys.forEach(k => { sorted[k] = p[k]; });
+    const str = JSON.stringify(sorted);
+    console.log("[LOGIN SIG INPUT]", str);
+    const sig = crypto.createHash('md5').update(str).digest('hex').toUpperCase().slice(0,32);
+    console.log("[LOGIN SIG]", sig);
+    return sig;
+}
+
+function makeBetSign(params) {
+    const p = {...params};
+    delete p.signature; delete p.timestamp;
+    const keys = Object.keys(p).filter(k=>p[k]!==null&&p[k]!=="").sort();
+    const sorted = {};
+    keys.forEach(k=>{ sorted[k]=p[k]===0?0:p[k]; });
+    return crypto.createHash('md5').update(JSON.stringify(sorted)).digest('hex').toUpperCase().slice(0,32);
+}
 
 // ============================================================
-// 🎯 MULTI-USER 24-HOUR AUTO LOGIN ENGINE
+//  FETCH CAPTCHA
 // ============================================================
+async function fetchCaptcha() {
+    try {
+        const r = await axios.get(CAPTCHA_URL, {
+            headers: {
+                "Accept": "application/json, text/plain, */*",
+                "Origin": "https://bdgwin8.vip",
+                "Referer": "https://bdgwin8.vip",
+                "Ar-Origin": "https://bdgwin8.vip",
+                "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36"
+            },
+            timeout: 10000
+        });
+        if (r.data?.code===0 && r.data?.data?.captchaId) {
+            return r.data.data.captchaId;
+        }
+        return "";
+    } catch(e) {
+        console.error("[CAPTCHA ERR]", e.message);
+        return "";
+    }
+}
 
+// ============================================================
+//  AUTO LOGIN
+// ============================================================
 let loginLock = {};
 
-// 🎯 1. மெயின் ஆட்டோ-லாகின் ஃபங்க்ஷன் (மொபைல் & லேப்டாப் ரெண்டுக்கும் பொதுவானது)
 async function autoLogin(userId, chatId, silent=false) {
     if (loginLock[userId]) return false;
     loginLock[userId] = true;
 
-    // 💾 ஒவ்வொரு பிரண்டுக்கும் தனித்தனி மெமரி ஃபைல் ஆட்டோவா கிரியேட் ஆகும் Siva da!
-    const sessionPath = path.join(__dirname, `session_${userId}.json`);
-    const hasSession = fs.existsSync(sessionPath);
+    const creds = userCreds[userId] || {};
+    const phone = creds.phone;
+    const pass  = creds.pass;
 
-    if (!hasSession) {
-        if (!silent && chatId) {
-            await send(chatId, "🌐 முதன்முறை லாகின் செய்கிறாய் Siva/Friend! பிரவுசர் ஓபன் ஆகியுள்ளது, கேம் பேஜில் உங்கள் Register Number & Password போட்டு லாகின் செய்யவும்.\n\n" +
-                               "⚠️ இந்த ஒரு முறை மட்டும் லாகின் செய்தால் போதும்! அடுத்த 24 மணி நேரத்திற்கும் பாட் ஆட்டோவாக டோக்கன் எடுத்துக்கொள்ளும்! ⏳");
-        }
-    } else {
-        if (!silent && chatId) {
-            await send(chatId, "🔄 பழைய லாகின் மெமரி உள்ளது! உங்களுக்கான 24h ஆட்டோ-டோக்கன் என்ஜினை பேக்ரவுண்டில் ரன் செய்கிறேன்... ⏳");
-        }
+    if (!phone || !pass) {
+        loginLock[userId] = false;
+        if (!silent && chatId) await send(chatId,
+"❌ Phone/Password இல்லை!\n\n"+
+"Format:\n/setcreds FULLPHONE PASSWORD\n\n"+
+"Example (India +91):\n/setcreds 916381605525 mypassword\n\n"+
+"Phone = CountryCode + Number\n"+
+"India: 91+6381605525 = 916381605525"
+        );
+        return false;
     }
 
-    // 🚀 டோக்கன் அள்ற மேஜிக் என்ஜினை கூப்பிடுறோம்
-    const tokenSuccess = await getMultiUser24HourToken(userId, chatId, silent, hasSession, sessionPath);
-    
-    loginLock[userId] = false;
-    return tokenSuccess;
-}
+    const captchaId = await fetchCaptcha();
+    const deviceId  = getOrCreateDevice(userId);
+    const rand      = crypto.randomBytes(16).toString('hex');
+    const ts        = Math.floor(Date.now() / 1000);
 
-// 🤖 2. யூசர் லாகின் செஷனை வச்சு ஆட்டோவா டோக்கன் அள்ற அல்டிமேட் இஞ்சின்!
-async function getMultiUser24HourToken(userId, chatId, silent, hasSession, sessionPath) {
-    let browser;
+    const payload = {
+        captchaId, deviceId,
+        language:  0,
+        logintype: "mobile",
+        packId:    "",
+        phonetype: 0,
+        pwd:       pass,
+        random:    rand,
+        timestamp: ts,
+        username:  phone,
+        track: { backgroundImageWidth:340, backgroundImageHeight:212, sliderImageWidth:68, sliderImageHeight:212 }
+    };
+    payload.signature = makeLoginSign(payload);
+
+    console.log("[LOGIN] Phone:", phone, "CaptchaId:", captchaId.slice(0,8)||"none");
+
     try {
-        console.log(`[🌐 BROWSER] Launching Browser Engine for User: ${userId}`);
-
-        // Replit (Cloud)-ல் ரன் ஆகும்போது 'true' (கண்ணுக்கு தெரியாது), லேப்டாப்ல ரன் ஆகும்போது விண்டோவாக ஓபன் ஆகும் da
-        const isReplit = process.env.REPLIT === "true" || process.env.REPL_ID !== undefined;
-
-        browser = await chromium.launch({
-            headless: hasSession ? true : (isReplit ? 'new' : false), 
-            channel: 'chrome'
+        const r = await axios.post(LOGIN_URL, payload, {
+            headers: {
+                "content-type": "application/json;charset=UTF-8",
+                "Accept":       "application/json, text/plain, */*",
+                "Origin":       "https://bdgwin8.vip",
+                "Referer":      "https://bdgwin8.vip/",
+                "Ar-Origin":    "https://bdgwin8.vip",
+                "User-Agent":   "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36"
+            },
+            timeout: 12000
         });
 
-        let context;
-        if (hasSession) {
-            // 💾 அந்தந்த பிரண்டோட தனிப்பட்ட மெமரியை மட்டும் லோடு பண்ணுது
-            console.log(`[💾 LOADING SESSION] Loading session_${userId}.json`);
-            context = await browser.newContext({ storageState: sessionPath });
-        } else {
-            context = await browser.newContext();
-        }
+        const res = r.data;
+        console.log("[LOGIN RESP] code:", res.code, "msg:", res.msg);
 
-        const page = await context.newPage();
-        console.log("[🌐 BROWSER] Navigating to Goa Games Login Page...");
-        await page.goto('https://goaokk.com/#/login', { waitUntil: 'load', timeout: 60000 });
-
-        let tokenFound = null;
-
-        if (!hasSession) {
-            // 🔥 ஃபர்ஸ்ட் டைம் உன் பிரண்ட் லாகின் பண்ற வரைக்கும் பாட் 2 நிமிடம் வெயிட் பண்ணும் Siva
-            const maxWaitTime = 120000; 
-            const startTime = Date.now();
-
-            while (Date.now() - startTime < maxWaitTime) {
-                tokenFound = await page.evaluate(() => {
-                    return localStorage.getItem('token') || sessionStorage.getItem('token') || localStorage.getItem('Authorization');
-                });
-
-                if (tokenFound && tokenFound !== "null" && tokenFound.trim() !== "") {
-                    // 🎯 லாகின் ஆன உடனே அவனோட செஷனை மட்டும் தனி ஃபைல்ல பாட் லாக் பண்ணிடும்!
-                    await page.waitForTimeout(2000); // டேட்டா முழுசா சேவ் ஆக சின்ன வெயிட்டிங்
-                    await context.storageState({ path: sessionPath });
-                    console.log(`[💾 SESSION SAVED] Session saved for user: session_${userId}.json`);
-                    break;
-                }
-                await page.waitForTimeout(1500); // ஒவ்வொரு 1.5 செகண்டுக்கும் செக் பண்ணும்
-            }
-        } else {
-            // 🔄 ஏற்கனவே மெமரி இருந்தா, ஆட்டோவா ஹோம் பேஜுக்கு போய் புது டோக்கனை அள்ளிடும்!
-            await page.goto('https://goaokk.com/#/home', { waitUntil: 'load', timeout: 40000 });
-            await page.waitForTimeout(4000); 
-
-            tokenFound = await page.evaluate(() => {
-                return localStorage.getItem('token') || sessionStorage.getItem('token') || localStorage.getItem('Authorization');
-            });
-        }
-
-        // 🎯 டோக்கன் கிடைச்சதும் பாட் பண்ற வேலை
-        if (tokenFound && tokenFound !== "null" && tokenFound.trim() !== "") {
-            userTokens[userId] = tokenFound;
-            console.log(`[✅ SUCCESS] Captured Token for ${userId}:`, tokenFound.slice(0, 15) + "...");
-            
-            if (!silent && chatId) {
-                if (!hasSession) {
-                    await send(chatId, "✅ லாகின் மெமரி சேவ் செய்யப்பட்டது Siva/Friend! இனி உங்கள் அக்கவுண்ட்டிற்கு 24 மணி நேரமும் பாட்டே பேக்ரவுண்டில் ஆட்டோவாக டோக்கன் எடுத்து பெட் கட்டும்! 🔥🚀");
-                } else {
-                    await send(chatId, "✅ 24h என்ஜின் பேக்rவுண்டில் புது டோக்கனை ஆட்டோவாக அள்ளிக்கொண்டது! 🚀");
-                }
-            }
-            await browser.close();
+        if (res.code===0 && res.data?.token) {
+            userTokens[userId] = res.data.token;
+            console.log("[LOGIN OK]");
+            if (!silent && chatId) await send(chatId,
+"✅ Login Success!\n📱 "+phone+"\n🔑 Token ready!\n\nAutoBet enable பண்ணு!"
+            );
+            loginLock[userId] = false;
             return true;
-        } else {
-            console.log(`[❌ ERROR] Could not get token for user ${userId}`);
-            if (!silent && chatId) {
-                await send(chatId, "❌ டோக்கன் எடுக்க முடியவில்லை Siva/Friend! லாகின் செஷன் எக்ஸ்பயர் ஆகியிருக்கலாம். `/login` கொடுத்து மீண்டும் ஒருமுறை லாகின் செய்யவும்.");
-            }
-            // ஒருவேளை லாகின் செஷன் தப்பானா பழைய ஃபைலை டெலிட் பண்ணிடும், அப்போதான் மறுபடி லாகின் விண்டோ வரும்
-            if (fs.existsSync(sessionPath)) fs.unlinkSync(sessionPath); 
-            await browser.close();
+        }
+
+        if (res.msg?.toLowerCase().includes("captcha")||res.msg?.toLowerCase().includes("verify")) {
+            if (!silent && chatId) await send(chatId,
+"⚠️ Captcha required!\nManual token use பண்ணு:\n/setmytoken TOKEN"
+            );
+            loginLock[userId] = false;
             return false;
         }
 
-    } catch (e) {
-        console.error("[❌ BROWSER ERROR]", e.message);
-        if (browser) await browser.close();
+        console.log("[LOGIN FAIL]", JSON.stringify(res).substr(0,150));
+        if (!silent && chatId) await send(chatId, "❌ Login fail: "+(res.msg||"code:"+res.code));
+        loginLock[userId] = false;
+        return false;
+
+    } catch(err) {
+        console.error("[LOGIN ERR]", err.message);
+        if (!silent && chatId) await send(chatId, "❌ Login error: "+err.message);
+        loginLock[userId] = false;
         return false;
     }
 }
+
 // ============================================================
 //  PLACE BET
 // ============================================================
@@ -284,9 +303,9 @@ async function placeBet(userId, chatId, period, prediction, predType, level) {
                 "authorization":    "Bearer "+token,
                 "content-type":     "application/json",
                 "Accept":           "application/json, text/plain, */*",
-                "Origin":           "https://goaokk.com",
-                "Referer":          "https://goaokk.com/",
-                "Ar-Origin":        "https://goaokk.com",
+                "Origin":           "https://bdgwin8.vip",
+                "Referer":          "https://bdgwin8.vip/",
+                "Ar-Origin":        "https://bdgwin8.vip",
                 "Sec-Ch-Ua":        '"Chromium";v="139"',
                 "Sec-Ch-Ua-Mobile": "?1",
                 "Sec-Fetch-Dest":   "empty",
@@ -345,8 +364,8 @@ async function fetchList(retries=3) {
                         "User-Agent":       "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36",
                         "Accept":           "application/json, text/plain, */*",
                         "Accept-Encoding":  "gzip, deflate, br",
-                        "Origin":           "https://goaokk.com",
-                        "Referer":          "https://goaokk.com/"
+                        "Origin":           "https://bdgwin8.vip",
+                        "Referer":          "https://bdgwin8.vip/"
                     },
                     timeout:12000, decompress:true, responseType:"arraybuffer"
                 });
@@ -721,6 +740,7 @@ function autobetStatus(chatId,userId){
     );
 }
 
+
 // ============================================================
 //  KEYBOARDS
 // ============================================================
@@ -936,25 +956,5 @@ function addHandlers(){
         if(text==="📩 Contact") send(msg.chat.id,"📩 "+ADMIN_HANDLE+"\nID: "+id);
     });
 }
-// 🎯 சிக்னேச்சர் எர்ரரை பிக்ஸ் பண்ண இந்த ஃபங்க்ஷனை உன் ஃபைலின் கடைசியில் போடு da Siva
-function makeBetSign(params) {
-    const crypto = require('crypto');
-    
-    // பேராமீட்டர்ஸை வரிசையாக அடுக்கி ஸ்ட்ரிங்காக மாத்துறோம்
-    const sortedKeys = Object.keys(params).sort();
-    let signStr = "";
-    for (let key of sortedKeys) {
-        if (params[key] !== undefined && params[key] !== null) {
-            signStr += key + "=" + params[key] + "&";
-        }
-    }
-    
-    // கடைசியில் இருக்கும் & குறியை தூக்குறோம்
-    if (signStr.endsWith("&")) {
-        signStr = signStr.slice(0, -1);
-    }
-    
-    // 🔐 MD5 ஆக என்க்ரிப்ட் செய்து சிக்னேச்சர் ரிட்டர்ன் பண்ணுது Siva!
-    return crypto.createHash('md5').update(signStr).digest('hex');
-}
+
 startBot();
